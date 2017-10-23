@@ -46,7 +46,7 @@ class DHHandler(Handler):
     def _send_notification(self, name, object):
         global send_counter
         start = time.time()
-        if start - self._last_sent > 3.0:
+        if start - self._last_sent > 15.0:
             print("\n[WARNING] Previous notification was sent "
                   + str(start - self._last_sent) + " seconds ago")
         try:
@@ -54,7 +54,7 @@ class DHHandler(Handler):
         except BaseException as e:
             print("\n[ERROR] " + e.__class__.__name__ + ": " + e.message)
         now = time.time()
-        if now - start > 2.0:
+        if now - start > 10.0:
             print("\n[WARNING] Notification send request took "
                   + str(now - start) + " seconds")
         self._last_sent = now
