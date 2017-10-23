@@ -149,3 +149,7 @@ try:
     print("\nNo worker threads left, exiting...")
 except KeyboardInterrupt:
     print("\nExiting...")
+total_time = time.time() - start_time
+print("Total time: " + str(int(total_time)) + " seconds, Average rate: "
+      + str(round(send_counter / total_time, 4))
+      + " notificaitons per second.")
