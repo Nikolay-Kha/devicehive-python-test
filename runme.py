@@ -25,16 +25,18 @@ receive_counter = 0
 
 
 class DHHandler(Handler):
-    def __init__(self, api):
+    def __init__(self, api, subscribe_notifications):
         super(DHHandler, self).__init__(api)
         self._device = None
         self._last_sent = 0.0
         self._parent_thread = None
+        self._subscribe_notifications = subscribe_notifications
 
     def handle_connect(self):
         self._device = self.api.put_device(DEVICE_ID)
         self._parent_thread = threading.current_thread()
-        self._device.subscribe_notifications()
+        if self._subscribe_notifications:
+            self._device.subscribe_notifications()
         loop_thread = threading.Thread(target=self._loop)
         loop_thread.setDaemon(True)
         loop_thread.start()
@@ -84,20 +86,22 @@ class DHHandler(Handler):
                 self._send_notification("gpio/int", o)
 
 
-def _run_instance():
-    dh = DeviceHive(DHHandler)
+def _run_instance(subscribe_notifications):
+    dh = DeviceHive(DHHandler, subscribe_notifications)
     dh.connect(SERVER_URL, refresh_token=REFRESH_TOKEN)
 
 parser = argparse.ArgumentParser()
-parser.add_argument("threads", help="Number of threads to run. Default is 1.",
+parser.add_argument("threads", help="number of threads to run. Default is 1.",
                     nargs='?', default='1')
-parser.add_argument('-d', '--debug', help="Print debug info",
+parser.add_argument('-d', '--debug', help="print debug info",
                     action="store_const", dest="loglevel", const=logging.DEBUG,
                     default=logging.WARNING)
-parser.add_argument('-v', '--verbose', help="Be verbose", action="store_const",
+parser.add_argument('-v', '--verbose', help="be verbose", action="store_const",
                     dest="loglevel", const=logging.NOTSET)
 parser.add_argument('-m', '--metrics', action='store_true', default=False,
-                    help="Print statistic as metrics.")
+                    help="print statistic as metrics.")
+parser.add_argument('-ns', '--no-subscription', action='store_true',
+                    default=False, help="do not subscribe on notifications.")
 args = parser.parse_args()
 logging.basicConfig(level=args.loglevel)
 threads_number = int(args.threads)
@@ -107,7 +111,8 @@ if threads_number < 1:
 
 threads = []
 for _ in range(0, threads_number):
-    instance_thread = threading.Thread(target=_run_instance)
+    instance_thread = threading.Thread(target=_run_instance,
+                                       args=(not args.no_subscription,))
     instance_thread.setDaemon(True)
     instance_thread.start()
     threads.append(instance_thread)
@@ -136,8 +141,10 @@ try:
         else:
             sys.stdout.write("\r\x1B[2K")
         now = time.time()
-        sys.stdout.write("Sent " + str(send_counter) + ", get "
-                         + str(receive_counter) + " notifications, "
+        sys.stdout.write("Sent " + str(send_counter))
+        if not args.no_subscription:
+            sys.stdout.write(", get " + str(receive_counter))
+        sys.stdout.write(" notifications, "
                          + str(round(sent_in_last_iteration
                                      / (now - last_time), 5))
                          + " notification/second. "
@@ -152,4 +159,4 @@ except KeyboardInterrupt:
 total_time = time.time() - start_time
 print("Total time: " + str(int(total_time)) + " seconds, Average rate: "
       + str(round(send_counter / total_time, 4))
-      + " notificaitons per second.")
+      + " notifications per second.")
